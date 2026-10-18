@@ -362,9 +362,10 @@
                 <span>[1] {{ strtoupper($room->player1_name) }}</span>
                 <span id="p1-status">EN LÍNEA</span>
             </div>
+            @php $maxAtt = $room->settings['attempts'] ?? 4; @endphp
             <div>INTENTOS DISPONIBLES:</div>
             <div class="att-blocks" id="p1-blocks">
-                @for($i = 0; $i < 4; $i++)
+                @for($i = 0; $i < $maxAtt; $i++)
                     <div class="att-box {{ $i >= $room->player1_attempts ? 'spent' : '' }}" id="p1-att-{{ $i }}"></div>
                 @endfor
             </div>
@@ -382,7 +383,7 @@
             </div>
             <div>INTENTOS DISPONIBLES:</div>
             <div class="att-blocks" id="p2-blocks">
-                @for($i = 0; $i < 4; $i++)
+                @for($i = 0; $i < $maxAtt; $i++)
                     <div class="att-box {{ $i >= $room->player2_attempts ? 'spent' : '' }}" id="p2-att-{{ $i }}"></div>
                 @endfor
             </div>
@@ -408,9 +409,10 @@
 
 <script>
 const ROOM_CODE = "{{ $room->code }}";
+const MAX_ATTEMPTS = {{ $maxAtt }};
 
 function updateBlocks(prefix, left) {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
         const el = document.getElementById(`${prefix}-att-${i}`);
         if (el) {
             if (i < left) el.classList.remove('spent');
@@ -447,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .listen('.TerminalBracketUsed', (e) => {
                 const prefix = (e.playerNumber === 1) ? 'p1' : 'p2';
                 if (e.bonusType === 'restore_attempts') {
-                    updateBlocks(prefix, 4);
+                    updateBlocks(prefix, e.attemptsRestored || MAX_ATTEMPTS);
                     appendLog(`${prefix}-log`, `Usó corchete: INTENTOS RESTABLECIDOS.`);
                 } else if (e.bonusType === 'offensive_glitch') {
                     appendLog(`${prefix}-log`, `⚡ Usó corchete: EMITIÓ DESCARGA ELECTROMAGNÉTICA AL RIVAL.`);

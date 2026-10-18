@@ -82,8 +82,24 @@ class ChatMessage extends Model
     /**
      * Elimina todos los mensajes de una sala (al finalizar la partida).
      */
-    public static function clearRoom(string $code): void
+    public static function clearRoom(string $code): int
     {
-        static::forRoom($code)->delete();
+        return static::forRoom($code)->delete();
+    }
+
+    /**
+     * Elimina todos los mensajes del lobby global.
+     */
+    public static function clearGlobal(): int
+    {
+        return static::global()->delete();
+    }
+
+    /**
+     * Elimina absolutamente todos los mensajes (global y salas).
+     */
+    public static function clearAll(): int
+    {
+        return static::query()->delete();
     }
 }

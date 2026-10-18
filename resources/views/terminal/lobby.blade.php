@@ -840,7 +840,7 @@
                     <button class="theme-btn"        data-t="blue"   onclick="applyTheme('blue')"></button>
                     <span style="font-size:0.75rem; opacity:0.8;">]</span>
                 </div>
-                <span class="net-status">[ENLACE REVERB: ACTIVO]</span>
+                <span class="net-status robco-ws-badge" onclick="window.configureRobcoWsHost()" style="cursor:pointer;" title="Clic para configurar URL de WebSocket / Reverb">[ENLACE: DETECTANDO...]</span>
             </div>
         </div>
         <div class="term-header-sub">
@@ -1526,26 +1526,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.robcoAudio) window.robcoAudio.playAccessGranted();
             })
             .listen('.TerminalRoomsPurged', (e) => {
+                const container = document.getElementById('roomsContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div id="noRoomsMsg" style="opacity: 0.6; padding: 16px 0; font-size: 0.85rem; text-align: center;">
+                            > NO HAY TERMINALES ACTIVAS EN LA SUBRED. INICIALIZA UNA NUEVA SALA.
+                        </div>
+                    `;
+                }
+                updateRoomsCount();
                 appendLobbyChatMessage({
                     playerName: 'SISTEMA ROBCO',
-                    message: `⚡ [MANTENIMIENTO]: ${e.purgedCount} terminal(es) obsoleta(s) purgada(s) de la subred.`,
+                    message: `⚡ [MANTENIMIENTO]: ${e.purgedCount} terminal(es) purgada(s) de la subred en tiempo real.`,
                     playerToken: 'SYS',
                     title: '[PROTOCOLO U-238]',
                     time: new Date().toLocaleTimeString().slice(0, 5)
                 });
-                setTimeout(() => window.location.reload(), 900);
-            });
+                if (window.robcoAudio) window.robcoAudio.playBracketBonus();
+            })
+            .listen('.LobbyChatCleared', (e) => clearLobbyChatFeed(e))
+            .listen('LobbyChatCleared', (e) => clearLobbyChatFeed(e));
 
         // ── CHAT GLOBAL EN LOBBY (REVERB) ──────────────────────────────────
         window.Echo.channel('robco-lobby-chat')
             .listen('.LobbyChatMessage', (e) => {
                 appendLobbyChatMessage(e);
-            });
+            })
+            .listen('.LobbyChatCleared', (e) => clearLobbyChatFeed(e))
+            .listen('LobbyChatCleared', (e) => clearLobbyChatFeed(e));
     }
 
     // Scroll inicial al final del feed del chat
     scrollLobbyChatToBottom();
 });
+
+function clearLobbyChatFeed(e) {
+    const feed = document.getElementById('lobbyChatFeed');
+    if (feed) {
+        feed.innerHTML = `
+            <div class="chat-empty" id="noLobbyChatMsg">
+                > CANAL DE SUBRED PURGADO // FRECUENCIA LIMPIA.
+            </div>
+        `;
+    }
+    if (window.robcoAudio) window.robcoAudio.playBracketBonus();
+}
 
 function updateRoomsCount() {
     const rows = document.querySelectorAll('#roomsContainer .room-row');
@@ -1605,11 +1630,17 @@ function appendLobbyChatMessage(msgData) {
     const feed = document.getElementById('lobbyChatFeed');
     if (!feed) return;
 
+    // Deduplicación para no mostrar dos veces el mismo mensaje
+    if (msgData.id && feed.querySelector(`[data-chat-id="${msgData.id}"]`)) {
+        return;
+    }
+
     const emptyMsg = document.getElementById('noLobbyChatMsg');
     if (emptyMsg) emptyMsg.remove();
 
-    const isOwn = msgData.playerToken === MY_PLAYER_TOKEN;
+    const isOwn = (msgData.playerToken === MY_PLAYER_TOKEN);
     const div = document.createElement('div');
+    if (msgData.id) div.dataset.chatId = msgData.id;
     div.className = `chat-msg ${isOwn ? 'chat-msg-own' : ''}`;
     div.innerHTML = `
         <span class="chat-time">[${msgData.time || 'AHORA'}]</span>
@@ -1656,8 +1687,10 @@ function handleSendLobbyChat(e) {
     })
     .then(r => r.json())
     .then(res => {
-        if (res.success) {
+        if (res.success && res.data) {
             input.value = '';
+            // Renderizado optimista inmediato sin necesidad de recargar la página
+            appendLobbyChatMessage(res.data);
             if (window.robcoAudio) window.robcoAudio.playKeyClick();
         } else {
             alert(res.message || 'Error al transmitir mensaje.');

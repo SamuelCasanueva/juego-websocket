@@ -662,6 +662,7 @@ class RobcoTerminalController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
+                'id'           => $chat->id,
                 'playerName'   => $playerName,
                 'playerNumber' => $playerNumber,
                 'playerToken'  => $token,

@@ -827,7 +827,7 @@
             </div>
         </div>
         <div class="term-status-line">
-            NODO DE BÓVEDA: [{{ $room->code }}] // OPERADOR: <span id="operatorActiveTitle" style="color:var(--term-amber); margin-right:4px;"></span>{{ strtoupper($playerName) }} [JUGADOR {{ $playerNumber }}] // ENLACE: REVERB 8080
+            NODO DE BÓVEDA: [{{ $room->code }}] // OPERADOR: <span id="operatorActiveTitle" style="color:var(--term-amber); margin-right:4px;"></span>{{ strtoupper($playerName) }} [JUGADOR {{ $playerNumber }}] // <span class="robco-ws-badge" onclick="window.configureRobcoWsHost()" style="cursor:pointer;" title="Clic para configurar URL de WebSocket / Reverb">[ENLACE: DETECTANDO...]</span>
             <span class="mode-badge {{ $gameMode === 'cooperative' ? 'coop' : ($gameMode === 'timed' ? 'timed' : 'comp') }}">{{ $modeLabel }}</span>
             @if($isAiMode)
                 <span class="mode-badge" style="border-color:var(--term-red); color:var(--term-red);">🤖 VS ZAX ({{ strtoupper($aiDiff) }})</span>
@@ -949,7 +949,7 @@
                         INTENTOS RIVAL:
                         <div class="rival-att-blocks" id="rival-attempts-blocks">
                             @php $rivAttempts = ($playerNumber === 1 ? $room->player2_attempts : $room->player1_attempts); @endphp
-                            @for($i = 0; $i < 4; $i++)
+                            @for($i = 0; $i < $maxAtt; $i++)
                                 <span class="riv-block {{ $i >= $rivAttempts ? 'spent' : '' }}" id="riv-att-{{ $i }}"></span>
                             @endfor
                         </div>
@@ -1056,8 +1056,19 @@ const MY_TOKEN = "{{ $token }}";
 const FIRST_SECRET_CHAR = "{{ $firstChar }}";
 const SCIENCE_HINT = @json($scienceHint);
 const ACTIVE_PERK = "{{ $perk }}";
+const PERK_LABEL = "{{ $perkLabel }}";
+const MODE_LABEL = "{{ $modeLabel }}";
+const PACK_LABEL = "{{ $packLabel }}";
+const WORD_LENGTH = {{ $wordLen }};
 const IS_AI_MODE = {{ $isAiMode ? 'true' : 'false' }};
 const AI_DIFFICULTY = "{{ $aiDiff }}";
+const ROOM_SETTINGS = @json($roomSettings);
+const GAME_MODE = ROOM_SETTINGS.mode || 'competitive';
+const TIME_LIMIT = ROOM_SETTINGS.time_limit || null;
+const SHOW_LIKENESS = ROOM_SETTINGS.show_likeness !== false;
+const MAX_ATTEMPTS = {{ $maxAtt }};
+const IS_COOP = (GAME_MODE === 'cooperative');
+const IS_TIMED = (GAME_MODE === 'timed');
 let myAttempts = {{ $myAttempts }};
 let isGameActive = {{ $room->status === 'finished' ? 'false' : 'true' }};
 
@@ -1201,7 +1212,7 @@ async function executeCodeInjection() {
 
 // ── BUCLE DE SIMULACIÓN IA (ZAX MAINFRAME) ─────────────────────────────
 let zaxInterval = null;
-let zaxAttemptsLeft = 4;
+let zaxAttemptsLeft = MAX_ATTEMPTS;
 function initZaxAiSimulation() {
     if (!IS_AI_MODE || !IS_PLAYER_1) return;
 
@@ -1285,7 +1296,7 @@ function updateMyAttempts(left) {
     const txt = document.getElementById('attemptsText');
     if (txt) txt.innerText = left;
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
         const el = document.getElementById(`my-att-${i}`);
         if (el) {
             if (i < left) {
@@ -1298,7 +1309,7 @@ function updateMyAttempts(left) {
 }
 
 function updateRivalAttempts(left) {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
         const el = document.getElementById(`riv-att-${i}`);
         if (el) {
             if (i < left) {
@@ -1518,7 +1529,7 @@ function initRobcoTerminal() {
             .listen('.TerminalBracketUsed', (e) => {
                 if (e.playerNumber !== PLAYER_NUM) {
                     if (e.bonusType === 'restore_attempts') {
-                        updateRivalAttempts(4);
+                        updateRivalAttempts(e.attemptsRestored || MAX_ATTEMPTS);
                         appendLog(`> NODO REMOTO RESTABLECIÓ SUS INTENTOS.`, 'log-line-remote');
                     } else if (e.bonusType === 'offensive_glitch') {
                         appendLog(`> NODO REMOTO HA EMITIDO UNA INTERFERENCIA EMP CONTRA TU TERMINAL.`, 'log-line-remote');
@@ -1595,11 +1606,17 @@ function appendRoomChatMessage(data) {
     const feed = document.getElementById('roomChatFeed');
     if (!feed) return;
 
+    // Deduplicación para evitar duplicar mensajes
+    if (data.id && feed.querySelector(`[data-chat-id="${data.id}"]`)) {
+        return;
+    }
+
     const empty = document.getElementById('noRoomChatMsg');
     if (empty) empty.remove();
 
     const isOwn = (data.playerToken === MY_TOKEN);
     const div = document.createElement('div');
+    if (data.id) div.dataset.chatId = data.id;
     div.className = `room-chat-msg ${isOwn ? 'room-chat-msg-own' : 'room-chat-msg-rival'}`;
     div.innerHTML = `
         <span class="room-chat-time">[${data.time || 'AHORA'}]</span>
@@ -1637,9 +1654,13 @@ async function handleSendRoomChat(e) {
             body: JSON.stringify({ message: message })
         });
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.data) {
             input.value = '';
+            // Renderizado optimista inmediato sin necesidad de recargar la página
+            appendRoomChatMessage(data.data);
             if (window.robcoAudio) window.robcoAudio.playKeyClick();
+        } else if (data.success) {
+            input.value = '';
         } else {
             alert(data.message || 'Error al transmitir mensaje.');
         }
@@ -1739,7 +1760,7 @@ async function claimBracket(bracketId, bonusType) {
         const data = await res.json();
 
         if (data.bonus_type === 'restore_attempts') {
-            updateMyAttempts(4);
+            updateMyAttempts(data.attempts || MAX_ATTEMPTS);
             appendLog(`> CORCHETE: INTENTOS RESTABLECIDOS.`, 'log-line-sys');
             recordServiceStat('brackets_used', 1);
         } else if (data.bonus_type === 'remove_dud' && data.removed_dud) {
@@ -1793,17 +1814,26 @@ function applyTheme(theme) {
         "SECURITY SUBSYSTEM v4.0.12 — VAULT NODE " + BOOT_ROOM_CODE,
         "",
         "LINKING TO REMOTE NODE...",
-        "  AUTHENTICATION:    CREDENTIAL TOKEN    [ OK ]",
-        "  CHANNEL:           REVERB-ENCRYPTED    [ OK ]",
-        "  MEMORY DUMP:       HEX GRID LOADED     [ OK ]",
-        "  PASSWORD LENGTH:   6 CHARACTERS        [ ARMED ]",
+        "  AUTHENTICATION:      CREDENTIAL TOKEN    [ OK ]",
+        "  CHANNEL:             REVERB-ENCRYPTED    [ OK ]",
+        "  MEMORY DUMP:         HEX GRID LOADED     [ OK ]",
+        "  PASSWORD LENGTH:     " + WORD_LENGTH + " CHARACTERS        [ ARMED ]",
         "",
         "INTRUSION DETECTION SYSTEM: ACTIVE",
-        "  ALLOWED ATTEMPTS PER OPERATOR: 4",
-        "  BRACKET ASSIST MODULES: ENABLED",
+        "  CONFIGURACIÓN DE SUBRED CARGADA:",
+        "  ------------------------------------------------",
+        "  MODO DE PROTOCOLO:   " + MODE_LABEL,
+        "  INTENTOS ASIGNADOS:  " + MAX_ATTEMPTS + (IS_COOP ? " (POOL COMPARTIDO)" : " POR OPERADOR"),
+        ...(IS_TIMED && TIME_LIMIT ? ["  LÍMITE TEMPORAL:     " + TIME_LIMIT + " SEGUNDOS"] : []),
+        ...(IS_AI_MODE ? ["  SISTEMA HOSTIL:      ZAX MAINFRAME [" + AI_DIFFICULTY.toUpperCase() + "]"] : []),
+        "  PAQUETE DE DATOS:    " + PACK_LABEL,
+        "  MÓDULO S.P.E.C.I.A.L.: " + PERK_LABEL,
+        "  SEMEJANZA VISIBLE:   " + (SHOW_LIKENESS ? "SÍ [X/Y]" : "NO [CLASIFICADO]"),
+        "  MÓDULOS DE CORCHETE: ENABLED",
+        "  ------------------------------------------------",
         "",
-        ">>> ENTER YOUR PASSWORD TO ACCESS VAULT SYSTEMS.",
-        ">>> UNAUTHORIZED ACCESS WILL TRIGGER LOCKDOWN.",
+        ">>> INTRODUZCA CONTRASEÑA PARA ACCEDER A SISTEMAS DE BÓVEDA.",
+        ">>> ACCESO NO AUTORIZADO ACTIVARÁ BLOQUEO DE TERMINAL.",
         "__________________________________________________",
     ];
 
@@ -1841,15 +1871,6 @@ function applyTheme(theme) {
 </script>
 
 <script>
-// ── SETTINGS DE SALA (leídos desde Blade) ─────────────────────────────────
-const ROOM_SETTINGS  = @json($roomSettings);
-const GAME_MODE      = ROOM_SETTINGS.mode          || 'competitive';
-const TIME_LIMIT     = ROOM_SETTINGS.time_limit    || null;
-const SHOW_LIKENESS  = ROOM_SETTINGS.show_likeness !== false;
-const MAX_ATTEMPTS   = ROOM_SETTINGS.attempts      || 4;
-const IS_COOP        = GAME_MODE === 'cooperative';
-const IS_TIMED       = GAME_MODE === 'timed';
-
 // ── Mostrar indicadores de modo en el DOM ─────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     // Pool cooperativo
