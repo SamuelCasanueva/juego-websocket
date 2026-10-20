@@ -549,6 +549,82 @@ class RobcoTerminalController extends Controller
     }
 
     /**
+     * Protocolo de rendición / abandono de terminal.
+     */
+    public function forfeitRoom(Request $request, string $code)
+    {
+        $token = $this->getPlayerToken();
+        $room  = RobcoRoom::where('code', strtoupper($code))->firstOrFail();
+
+        if ($room->status === 'finished') {
+            return response()->json([
+                'success'  => true,
+                'message'  => 'La terminal ya está cerrada.',
+                'redirect' => route('terminal.lobby'),
+            ]);
+        }
+
+        // Si la sala está en espera y el creador abandona
+        if ($room->status === 'waiting') {
+            if ($room->isPlayer1($token)) {
+                $room->status       = 'finished';
+                $room->winner_token = 'none';
+                $room->winner_name  = 'ABANDONADA';
+                $room->save();
+
+                broadcast(new TerminalRoomUpdated($room->code, 'finished'));
+
+                return response()->json([
+                    'success'  => true,
+                    'message'  => 'Frecuencia de bóveda cerrada.',
+                    'redirect' => route('terminal.lobby'),
+                ]);
+            }
+        }
+
+        // Si la partida está activa (jugador 1 o jugador 2)
+        $isP1 = $room->isPlayer1($token);
+        $isP2 = $room->isPlayer2($token);
+
+        if (!$isP1 && !$isP2) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No autorizado.',
+            ], 403);
+        }
+
+        $forfeiterName   = $isP1 ? $room->player1_name : $room->player2_name;
+        $winnerNumber    = $isP1 ? 2 : 1;
+        $winnerName      = $isP1 ? $room->player2_name : $room->player1_name;
+        $winnerToken     = $isP1 ? $room->player2_token : $room->player1_token;
+
+        $room->status        = 'finished';
+        $room->winner_token  = $winnerToken ?? 'none';
+        $room->winner_name   = $winnerName ?? 'OPERADOR REMOTO';
+        $room->attempts_used = $room->attempts_used ?? 1;
+        $room->save();
+
+        broadcast(new TerminalHacked(
+            $room->code,
+            $winnerNumber,
+            $room->winner_name,
+            $room->secret_word,
+            $room->attempts_used,
+            true, // isForfeit
+            $forfeiterName
+        ));
+
+        broadcast(new TerminalRoomUpdated($room->code, 'finished'));
+
+        return response()->json([
+            'success'    => true,
+            'is_forfeit' => true,
+            'message'    => 'Has cedido el control de la bóveda.',
+            'redirect'   => route('terminal.lobby'),
+        ]);
+    }
+
+    /**
      * Modo espectador para la terminal (pantalla dividida).
      */
     public function spectateRoom(string $code)

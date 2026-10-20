@@ -256,6 +256,46 @@ class RobcoTerminalTest extends TestCase
         $this->assertEquals('tok-op', $room->player2_token);
         $this->assertEquals('playing', $room->status);
     }
+
+    public function test_player_forfeit_awards_victory_to_rival(): void
+    {
+        \Illuminate\Support\Facades\Event::fake([\App\Events\TerminalHacked::class, \App\Events\TerminalRoomUpdated::class]);
+
+        $gameData = RobcoTerminalGenerator::generateGame();
+        $room = RobcoRoom::create([
+            'code'             => 'V-QUIT',
+            'secret_word'      => 'BOVEDA',
+            'word_length'      => 6,
+            'grid_data'        => $gameData,
+            'status'           => 'playing',
+            'player1_name'     => 'Supervisor 101',
+            'player1_token'    => 'tok-p1',
+            'player2_name'     => 'Infiltrado',
+            'player2_token'    => 'tok-p2',
+            'player1_attempts' => 4,
+            'player2_attempts' => 4,
+        ]);
+
+        // P1 abandona la partida
+        $response = $this->withSession(['robco_player_token' => 'tok-p1'])
+            ->postJson("/terminal/sala/{$room->code}/abandonar");
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success'    => true,
+            'is_forfeit' => true,
+        ]);
+
+        $room->refresh();
+        $this->assertEquals('finished', $room->status);
+        $this->assertEquals('tok-p2', $room->winner_token);
+        $this->assertEquals('Infiltrado', $room->winner_name);
+
+        \Illuminate\Support\Facades\Event::assertDispatched(\App\Events\TerminalHacked::class, function ($e) use ($room) {
+            return $e->roomCode === $room->code && $e->isForfeit === true && $e->winnerNumber === 2;
+        });
+        \Illuminate\Support\Facades\Event::assertDispatched(\App\Events\TerminalRoomUpdated::class);
+    }
 }
 
 

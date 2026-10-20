@@ -823,9 +823,9 @@
                 <button class="term-action-btn" onclick="copyInviteLink()">
                     > [COPIAR FRECUENCIA DE ENLACE]
                 </button>
-                <a href="{{ route('terminal.lobby') }}" class="term-action-btn">
-                    > [DESCONECTAR]
-                </a>
+                <button type="button" class="term-action-btn" onclick="handleForfeitOrExit()" style="border-color: var(--term-red); color: var(--term-red);" title="Abandonar la sesión de hackeo o salir al menú principal">
+                    > [ABANDONAR // SALIR]
+                </button>
             </div>
         </div>
         <div class="term-status-line">
@@ -1015,8 +1015,8 @@
 
     <!-- Pantalla de Éxito RobCo (Acceso Concedido) -->
     <div class="term-screen-takeover" id="winOverlay">
-        <div class="takeover-title">====================================<br>¡ACCESO CONCEDIDO!<br>====================================</div>
-        <div class="takeover-body">
+        <div class="takeover-title" id="winTitle">====================================<br>¡ACCESO CONCEDIDO!<br>====================================</div>
+        <div class="takeover-body" id="winDesc">
             SISTEMA DE SEGURIDAD DE BÓVEDA DESBLOQUEADO.<br>
             CONTRASEÑA VERIFICADA: [<span id="winSecretWord"></span>]<br><br>
             AUTORIZACIÓN DE SUPERVISOR CONCEDIDA.
@@ -1540,6 +1540,59 @@ async function requestRematch() {
     }
 }
 
+async function handleForfeitOrExit() {
+    if (window.robcoAudio) window.robcoAudio.playKeyClick();
+
+    if (!isGameActive) {
+        window.location.href = "{{ route('terminal.lobby') }}";
+        return;
+    }
+
+    if (IS_AI_MODE) {
+        if (!confirm('¿ABANDONAR SIMULACIÓN CONTRA LA IA ZAX? El control de la bóveda será confiscado por RobCo.')) {
+            return;
+        }
+        isGameActive = false;
+        if (typeof zaxInterval !== 'undefined' && zaxInterval) clearInterval(zaxInterval);
+        appendLog('> SIMULACIÓN ABANDONADA // CONTROL CONFISCADO POR ZAX.', 'log-line-sys');
+        document.getElementById('lossTitle').innerHTML = '====================================<br>SIMULACIÓN ABANDONADA<br>====================================';
+        document.getElementById('lossDesc').innerHTML  = 'HAS CERRADO LA SESIÓN DE PRUEBA.<br><br>LA SUPERCOMPUTADORA ROBCO ZAX HA TOMADO CONTROL DE LA TERMINAL.';
+        document.getElementById('lossOverlay').classList.add('active');
+        if (window.robcoAudio) window.robcoAudio.playAlarm();
+        return;
+    }
+
+    if (!confirm('¿CONFIRMAR ABANDONO DE LA TERMINAL? Cederás el control total de la bóveda al nodo remoto.')) {
+        return;
+    }
+
+    appendLog('> TRANSMITIENDO PROTOCOLO DE ABANDONO A LA SUBRED...', 'log-line-sys');
+
+    try {
+        const res = await fetch(`/terminal/sala/${ROOM_CODE}/abandonar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF_TOKEN,
+                'Accept': 'application/json'
+            }
+        });
+        const data = await res.json();
+        if (data.success) {
+            isGameActive = false;
+            document.getElementById('lossTitle').innerHTML = '====================================<br>TERMINAL ABANDONADA<br>====================================';
+            document.getElementById('lossDesc').innerHTML  = 'HAS CERRADO LA TRANSMISIÓN Y CEDIDO LA BÓVEDA AL NODO REMOTO.';
+            document.getElementById('lossOverlay').classList.add('active');
+            if (window.robcoAudio) window.robcoAudio.playAlarm();
+        } else {
+            alert(data.message || 'Error al abandonar.');
+        }
+    } catch (err) {
+        console.error(err);
+        window.location.href = "{{ route('terminal.lobby') }}";
+    }
+}
+
 function initRobcoTerminal() {
     attachCellEvents();
 
@@ -1620,7 +1673,7 @@ function initRobcoTerminal() {
             })
             .listen('.TerminalHacked', (e) => {
                 isGameActive = false;
-                if (zaxInterval) clearInterval(zaxInterval);
+                if (typeof zaxInterval !== 'undefined' && zaxInterval) clearInterval(zaxInterval);
                 if (e.winnerNumber === 0) {
                     document.getElementById('lossTitle').innerHTML = '====================================<br>DOBLE BLOQUEO DE SEGURIDAD<br>====================================';
                     document.getElementById('lossDesc').innerHTML = `AMBOS OPERADORES HAN AGOTADO SUS INTENTOS.<br><br>LA CONTRASEÑA SECRETA ERA: [${e.secretWord}].<br>SUBRUTINA CLAUSURADA.`;
@@ -1628,13 +1681,27 @@ function initRobcoTerminal() {
                     if (window.robcoAudio) window.robcoAudio.playAlarm();
                 } else if (e.winnerNumber === PLAYER_NUM) {
                     document.getElementById('winSecretWord').innerText = e.secretWord;
+                    const winTitle = document.getElementById('winTitle');
+                    const winDesc = document.getElementById('winDesc');
+                    if (e.isForfeit) {
+                        if (winTitle) winTitle.innerHTML = '====================================<br>¡VICTORIA POR FORFEIT!<br>====================================';
+                        if (winDesc) winDesc.innerHTML = `EL NODO REMOTO [${(e.forfeitPlayerName || 'RIVAL').toUpperCase()}] HA ABANDONADO LA FRECUENCIA.<br><br>CONTROL TOTAL DE LA BÓVEDA ASIGNADO A TU TERMINAL.<br>LA CONTRASEÑA ERA: [${e.secretWord}].`;
+                        appendLog(`> [ALERTA DE SISTEMA] NODO REMOTO HA ABANDONADO LA TERMINAL. ¡VICTORIA POR FORFEIT!`, 'log-line-sys');
+                    } else {
+                        if (winTitle) winTitle.innerHTML = '====================================<br>¡ACCESO CONCEDIDO!<br>====================================';
+                        if (winDesc) winDesc.innerHTML = `SISTEMA DE SEGURIDAD DE BÓVEDA DESBLOQUEADO.<br>CONTRASEÑA VERIFICADA: [<span id="winSecretWord">${e.secretWord}</span>]<br><br>AUTORIZACIÓN DE SUPERVISOR CONCEDIDA.`;
+                    }
                     document.getElementById('winOverlay').classList.add('active');
                     if (window.robcoAudio) window.robcoAudio.playAccessGranted();
                     recordServiceStat('games_won', 1);
                     if (IS_AI_MODE) recordServiceStat('ai_games_won', 1);
                 } else {
-                    document.getElementById('lossTitle').innerHTML = '====================================<br>ACCESO DENEGADO<br>====================================';
-                    document.getElementById('lossDesc').innerHTML = `EL NODO REMOTO [${e.winnerName.toUpperCase()}] HA DESCIFRADO LA CONTRASEÑA [${e.secretWord}].<br><br>CONTROL DE BÓVEDA PERDIDO.`;
+                    document.getElementById('lossTitle').innerHTML = e.isForfeit
+                        ? '====================================<br>TERMINAL ABANDONADA<br>===================================='
+                        : '====================================<br>ACCESO DENEGADO<br>====================================';
+                    document.getElementById('lossDesc').innerHTML = e.isForfeit
+                        ? `HAS CERRADO LA TRANSMISIÓN Y CEDIDO EL CONTROL DE LA BÓVEDA AL NODO REMOTO [${e.winnerName.toUpperCase()}].`
+                        : `EL NODO REMOTO [${e.winnerName.toUpperCase()}] HA DESCIFRADO LA CONTRASEÑA [${e.secretWord}].<br><br>CONTROL DE BÓVEDA PERDIDO.`;
                     document.getElementById('lossOverlay').classList.add('active');
                     if (window.robcoAudio) window.robcoAudio.playAlarm();
                 }

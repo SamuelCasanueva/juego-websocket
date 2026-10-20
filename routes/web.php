@@ -19,6 +19,7 @@ Route::get('/terminal/sala/{code}', [RobcoTerminalController::class, 'showRoom']
 Route::post('/terminal/sala/{code}/probar', [RobcoTerminalController::class, 'guessWord'])->name('terminal.guess');
 Route::post('/terminal/sala/{code}/corchete', [RobcoTerminalController::class, 'useBracket'])->name('terminal.bracket');
 Route::post('/terminal/sala/{code}/revancha', [RobcoTerminalController::class, 'rematch'])->name('terminal.rematch');
+Route::post('/terminal/sala/{code}/abandonar', [RobcoTerminalController::class, 'forfeitRoom'])->name('terminal.forfeit');
 Route::get('/terminal/sala/{code}/espectador', [RobcoTerminalController::class, 'spectateRoom'])->name('terminal.spectate');
 Route::post('/terminal/crear-ia', [RobcoTerminalController::class, 'createAiRoom'])->name('terminal.create.ai');
 Route::post('/terminal/sala/{code}/interferencia', [RobcoTerminalController::class, 'sendInterference'])->name('terminal.interference');

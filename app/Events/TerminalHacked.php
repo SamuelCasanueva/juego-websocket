@@ -18,15 +18,26 @@ class TerminalHacked implements ShouldBroadcast
     public string $secretWord;
     public int $attemptsUsed;
     public string $date;
+    public bool $isForfeit;
+    public ?string $forfeitPlayerName;
 
-    public function __construct(string $roomCode, int $winnerNumber, string $winnerName, string $secretWord, int $attemptsUsed = 1)
-    {
+    public function __construct(
+        string $roomCode,
+        int $winnerNumber,
+        string $winnerName,
+        string $secretWord,
+        int $attemptsUsed = 1,
+        bool $isForfeit = false,
+        ?string $forfeitPlayerName = null
+    ) {
         $this->roomCode = $roomCode;
         $this->winnerNumber = $winnerNumber;
         $this->winnerName = $winnerName;
         $this->secretWord = $secretWord;
         $this->attemptsUsed = $attemptsUsed;
         $this->date = date('H:i');
+        $this->isForfeit = $isForfeit;
+        $this->forfeitPlayerName = $forfeitPlayerName;
     }
 
     public function broadcastOn(): array

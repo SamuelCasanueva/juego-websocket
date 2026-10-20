@@ -472,6 +472,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     text.innerHTML = `⚠️ AMBOS OPERADORES HAN SIDO BLOQUEADOS.<br>LA CONTRASEÑA ERA [${e.secretWord}].`;
                     banner.style.borderColor = '#ef4444';
                     banner.style.color = '#ef4444';
+                } else if (e.isForfeit) {
+                    text.innerHTML = `🚪 ¡OPERADOR ${e.winnerNumber} (${e.winnerName.toUpperCase()}) GANA POR FORFEIT!<br>EL NODO RIVAL [${(e.forfeitPlayerName || 'RIVAL').toUpperCase()}] HA ABANDONADO LA FRECUENCIA.<br>CONTRASEÑA: [${e.secretWord}].`;
+                    banner.style.borderColor = '#f59e0b';
+                    banner.style.color = '#f59e0b';
                 } else {
                     text.innerHTML = `🏆 ¡OPERADOR ${e.winnerNumber} (${e.winnerName.toUpperCase()}) HA HACKEADO LA BÓVEDA!<br>CONTRASEÑA: [${e.secretWord}] EN ${e.attemptsUsed} INTENTO(S).`;
                     banner.style.borderColor = '#1bf835';
