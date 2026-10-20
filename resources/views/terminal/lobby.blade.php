@@ -1133,7 +1133,7 @@
         </div>
         <div class="term-rooms-list" id="leaderboardContainer">
             @forelse($leaderboard as $lb)
-                <div class="room-row">
+                <div class="room-row" data-code="{{ $lb->code }}">
                     <div>
                         <span>[{{ $lb->code }}]</span>
                         <span> · OPERADOR: <strong>{{ strtoupper($lb->winner_name) }}</strong></span>
@@ -1511,16 +1511,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (statusEl) {
                     statusEl.innerText = e.status.toUpperCase();
                 }
+
+                if (e.status === 'finished') {
+                    removeActiveRoomFromLobby(e.code);
+                }
             })
             .listen('.TerminalHacked', (e) => {
-                if (e.winnerNumber === 0) return; // Si ambos fueron bloqueados, no entra al salón de la fama
+                // 1. Remover inmediatamente la sala de terminales activas
+                removeActiveRoomFromLobby(e.roomCode);
+
+                // 2. Si ambos fueron bloqueados (winnerNumber === 0), no entra al Salón de la Fama
+                if (e.winnerNumber === 0) return;
 
                 const lbContainer = document.getElementById('leaderboardContainer');
+                if (!lbContainer) return;
+
                 const emptyLb = document.getElementById('noLeaderboardMsg');
                 if (emptyLb) emptyLb.remove();
 
+                // Evitar duplicar si ya fue registrada
+                if (lbContainer.querySelector(`[data-code="${e.roomCode}"]`)) return;
+
                 const row = document.createElement('div');
                 row.className = 'room-row room-row-new';
+                row.setAttribute('data-code', e.roomCode);
                 row.innerHTML = `
                     <div>
                         <span>[${e.roomCode}]</span>
@@ -1532,6 +1546,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
                 lbContainer.prepend(row);
+
+                // Mantener como máximo los 5 registros más recientes
+                const currentRows = lbContainer.querySelectorAll('.room-row');
+                if (currentRows.length > 5) {
+                    currentRows[currentRows.length - 1].remove();
+                }
+
+                const lbCountEl = document.getElementById('leaderboardCount');
+                if (lbCountEl) {
+                    lbCountEl.innerText = `[${Math.min(5, lbContainer.querySelectorAll('.room-row').length)} REGISTRADOS]`;
+                }
+
                 if (window.robcoAudio) window.robcoAudio.playAccessGranted();
             })
             .listen('.TerminalRoomsPurged', (e) => {
@@ -1585,6 +1611,34 @@ function updateRoomsCount() {
     const rows = document.querySelectorAll('#roomsContainer .room-row');
     const countEl = document.getElementById('roomsCount');
     if (countEl) countEl.innerText = `[${rows.length} DETECTADAS]`;
+}
+
+function removeActiveRoomFromLobby(code) {
+    if (!code) return;
+    const card = document.getElementById(`room-card-${code}`);
+    if (card) {
+        card.style.transition = 'all 0.4s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(25px)';
+        setTimeout(() => {
+            if (card.parentNode) card.remove();
+            updateRoomsCount();
+            checkEmptyRoomsContainer();
+        }, 400);
+    }
+}
+
+function checkEmptyRoomsContainer() {
+    const container = document.getElementById('roomsContainer');
+    if (container && container.querySelectorAll('.room-row').length === 0) {
+        if (!document.getElementById('noRoomsMsg')) {
+            container.innerHTML = `
+                <div id="noRoomsMsg" style="padding: 10px; font-size: 0.85rem; opacity: 0.8;">
+                    NO SE DETECTAN TERMINALES EN ESTA FRECUENCIA. INICIALIZA UNA TERMINAL LOCAL.
+                </div>
+            `;
+        }
+    }
 }
 
 async function handlePurgeRooms() {
