@@ -26,4 +26,10 @@ Route::post('/terminal/chat/global', [RobcoTerminalController::class, 'sendLobby
 Route::post('/terminal/sala/{code}/chat', [RobcoTerminalController::class, 'sendRoomMessage'])->name('terminal.chat.room');
 Route::post('/terminal/salas/purgar', [RobcoTerminalController::class, 'purgeRooms'])->name('terminal.rooms.purge');
 
+// Rutas de demostración para previsualizar páginas de error RobCo
+if (app()->environment('local')) {
+    Route::get('/demo/500', fn() => response()->view('errors.500', [], 500));
+    Route::get('/demo/404', fn() => response()->view('errors.404', [], 404));
+}
+
 
