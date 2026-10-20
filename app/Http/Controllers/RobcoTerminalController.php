@@ -536,7 +536,7 @@ class RobcoTerminalController extends Controller
         $room->attempts_used    = null;
         $room->save();
 
-        broadcast(new TerminalRematch($room->code, $newGame, $newGame['word_length']));
+        broadcast(new TerminalRematch($room->code, $newGame['word_length'], $attempts));
         broadcast(new TerminalRoomUpdated($room->code, 'playing'));
 
         return response()->json([

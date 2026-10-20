@@ -479,11 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .listen('.TerminalRematch', (e) => {
-                document.getElementById('winnerBanner').classList.remove('active');
-                updateBlocks('p1', 4);
-                updateBlocks('p2', 4);
-                appendLog('p1-log', '--- REVANCHA INICIADA (4 INTENTOS) ---');
-                appendLog('p2-log', '--- REVANCHA INICIADA (4 INTENTOS) ---');
+                window.location.reload();
             });
     }
 });

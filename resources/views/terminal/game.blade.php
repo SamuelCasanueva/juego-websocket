@@ -1520,8 +1520,9 @@ async function requestRematch() {
             }
         });
         const data = await res.json();
-        if (data.success && data.grid_data) {
-            applyRematchSession(data.grid_data, data.attempts || MAX_ATTEMPTS);
+        if (data.success) {
+            appendLog('> REVANCHA CONCEDIDA // REINICIANDO NODO...', 'log-line-sys');
+            window.location.reload();
         } else {
             appendLog(`> ${data.message || 'Error al iniciar revancha'}`, 'log-line-sys');
             document.querySelectorAll('.btn-rematch-action').forEach(b => {
@@ -1531,6 +1532,7 @@ async function requestRematch() {
         }
     } catch (err) {
         console.error(err);
+        appendLog('> ERROR DE ENLACE // NO SE PUDO INICIAR LA REVANCHA', 'log-line-sys');
         document.querySelectorAll('.btn-rematch-action').forEach(b => {
             b.disabled = false;
             b.innerText = '> [REINICIAR PROTOCOLO // REVANCHA]';
@@ -1638,8 +1640,10 @@ function initRobcoTerminal() {
                 }
             })
             .listen('.TerminalRematch', (e) => {
-                const grid = e.gridData || e.grid_data;
-                applyRematchSession(grid, MAX_ATTEMPTS);
+                appendLog('> EL OTRO OPERADOR HA INICIADO UNA REVANCHA // RECARGANDO TERMINAL...', 'log-line-sys');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 300);
             })
             .listen('.RoomChatMessage', (e) => {
                 appendRoomChatMessage(e);

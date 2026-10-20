@@ -13,15 +13,15 @@ class TerminalRematch implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public string $roomCode;
-    public array $gridData;
     public int $wordLength;
+    public int $attempts;
     public string $message;
 
-    public function __construct(string $roomCode, array $gridData, int $wordLength)
+    public function __construct(string $roomCode, int $wordLength = 6, int $attempts = 4)
     {
         $this->roomCode = $roomCode;
-        $this->gridData = $gridData;
         $this->wordLength = $wordLength;
+        $this->attempts = $attempts;
         $this->message = "¡SUBRUTINA REINICIADA! NUEVO VOLCADO DE MEMORIA GENERADO.";
     }
 
