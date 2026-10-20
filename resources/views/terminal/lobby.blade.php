@@ -846,15 +846,7 @@
         <div class="term-header-title">
             <span>ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL</span>
             <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-                <!-- Selector de Tema Pip-Boy -->
-                <div class="theme-switcher" title="TEMA DE PANTALLA PIP-BOY">
-                    <span style="font-size:0.75rem; opacity:0.8;">[ PIP-BOY:</span>
-                    <button class="theme-btn active" data-t="green"  onclick="applyTheme('green')"></button>
-                    <button class="theme-btn"        data-t="amber"  onclick="applyTheme('amber')"></button>
-                    <button class="theme-btn"        data-t="blue"   onclick="applyTheme('blue')"></button>
-                    <span style="font-size:0.75rem; opacity:0.8;">]</span>
-                </div>
-                <button type="button" class="settings-trigger-btn" onclick="window.toggleRobcoSettings(true)" title="Ajustes de visualización (Filtro CRT, Contraste, Tamaño)">
+                <button type="button" class="settings-trigger-btn" onclick="window.toggleRobcoSettings(true)" title="Ajustes de visualización (Filtro CRT, Contraste, Tamaño, Tema Pip-Boy)">
                     ⚙ [AJUSTES]
                 </button>
                 <span class="net-status robco-ws-badge" onclick="window.configureRobcoWsHost()" style="cursor:pointer;" title="Clic para configurar URL de WebSocket / Reverb">[ENLACE: DETECTANDO...]</span>

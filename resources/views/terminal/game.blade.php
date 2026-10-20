@@ -813,15 +813,7 @@
         <div class="term-header-top">
             <span class="term-title">ROBCO INDUSTRIES (TM) TERMLINK PROTOCOL</span>
             <div class="term-header-actions">
-                <!-- Selector de Tema Pip-Boy -->
-                <div class="theme-switcher" title="TEMA DE PANTALLA PIP-BOY" style="margin-right:6px;">
-                    <span style="font-size:0.7rem; opacity:0.8;">[PIP:</span>
-                    <button class="theme-btn active" data-t="green" onclick="applyTheme('green')"></button>
-                    <button class="theme-btn"        data-t="amber" onclick="applyTheme('amber')"></button>
-                    <button class="theme-btn"        data-t="blue"  onclick="applyTheme('blue')"></button>
-                    <span style="font-size:0.7rem; opacity:0.8;">]</span>
-                </div>
-                <button type="button" class="term-action-btn" onclick="window.toggleRobcoSettings(true)" title="Ajustes de visualización (Filtro CRT, Contraste de palabras, Tamaño de fuente)">
+                <button type="button" class="term-action-btn" onclick="window.toggleRobcoSettings(true)" title="Ajustes de visualización (Filtro CRT, Contraste de palabras, Tamaño de fuente, Tema Pip-Boy)">
                     ⚙ [AJUSTES]
                 </button>
                 <a href="{{ route('terminal.spectate', ['code' => $room->code]) }}" target="_blank" class="term-action-btn"
