@@ -6,7 +6,14 @@
         (function() {
             var params = new URLSearchParams(window.location.search);
             var theme = params.get('theme') || localStorage.getItem('robco_theme') || 'green';
+            var crt = localStorage.getItem('robco_crt') || 'retro';
+            var contrast = localStorage.getItem('robco_contrast') || 'classic';
+            var fontSize = localStorage.getItem('robco_font_size') || 'normal';
+
             document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-crt', crt);
+            document.documentElement.setAttribute('data-contrast', contrast);
+            document.documentElement.setAttribute('data-fontsize', fontSize);
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -814,6 +821,9 @@
                     <button class="theme-btn"        data-t="blue"  onclick="applyTheme('blue')"></button>
                     <span style="font-size:0.7rem; opacity:0.8;">]</span>
                 </div>
+                <button type="button" class="term-action-btn" onclick="window.toggleRobcoSettings(true)" title="Ajustes de visualización (Filtro CRT, Contraste de palabras, Tamaño de fuente)">
+                    ⚙ [AJUSTES]
+                </button>
                 <a href="{{ route('terminal.spectate', ['code' => $room->code]) }}" target="_blank" class="term-action-btn"
                    onclick="this.href=this.href.split('?')[0] + '?theme=' + (localStorage.getItem('robco_theme') || 'green')">
                     > [MODO ESPECTADOR]
@@ -2014,5 +2024,7 @@ if (!SHOW_LIKENESS) {
     });
 }
 </script>
+
+@include('terminal.partials.settings-modal')
 </body>
 </html>
