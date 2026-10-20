@@ -287,10 +287,23 @@
             font-size: 0.8rem;
             font-weight: bold;
             cursor: pointer;
+            display: inline-block;
+            transition: all 0.15s ease;
         }
 
         .room-link-btn:hover {
             background: var(--term-green);
+            color: #000000;
+            text-shadow: none;
+        }
+
+        .room-link-btn.btn-spectate {
+            border-color: var(--term-amber);
+            color: var(--term-amber);
+        }
+
+        .room-link-btn.btn-spectate:hover {
+            background: var(--term-amber);
             color: #000000;
             text-shadow: none;
         }
@@ -1113,9 +1126,15 @@
                         <span> · OPERADOR: {{ strtoupper($room->player1_name) }}</span>
                         <span> · ESTADO: <span id="status-{{ $room->code }}">{{ strtoupper($room->status) }}</span></span>
                     </div>
-                    <button type="button" class="room-link-btn" onclick="joinRoomPrompt('{{ $room->code }}')">
-                        > ENLAZAR
-                    </button>
+                    @if($room->status === 'waiting')
+                        <button type="button" class="room-link-btn" id="btn-room-{{ $room->code }}" onclick="joinRoomPrompt('{{ $room->code }}')">
+                            > ENLAZAR
+                        </button>
+                    @else
+                        <a href="{{ route('terminal.spectate', ['code' => $room->code]) }}" class="room-link-btn btn-spectate" id="btn-room-{{ $room->code }}" onclick="if(window.robcoAudio) window.robcoAudio.playKeyClick();">
+                            > OBSERVAR
+                        </a>
+                    @endif
                 </div>
             @empty
                 <div id="noRoomsMsg" style="padding: 10px; font-size: 0.85rem; opacity: 0.8;">
@@ -1491,15 +1510,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.createElement('div');
                 row.className = 'room-row room-row-new';
                 row.id = `room-card-${e.code}`;
+                const isWaiting = (e.status === 'waiting');
                 row.innerHTML = `
                     <div>
                         <span>[${e.code}]</span>
                         <span> · OPERADOR: ${e.hostName.toUpperCase()}</span>
                         <span> · ESTADO: <span id="status-${e.code}">${e.status.toUpperCase()}</span></span>
                     </div>
-                    <button type="button" class="room-link-btn" onclick="joinRoomPrompt('${e.code}')">
-                        > ENLAZAR
-                    </button>
+                    ${isWaiting ? `
+                        <button type="button" class="room-link-btn" id="btn-room-${e.code}" onclick="joinRoomPrompt('${e.code}')">
+                            > ENLAZAR
+                        </button>
+                    ` : `
+                        <a href="/terminal/sala/${e.code}/espectador" class="room-link-btn btn-spectate" id="btn-room-${e.code}" onclick="if(window.robcoAudio) window.robcoAudio.playKeyClick();">
+                            > OBSERVAR
+                        </a>
+                    `}
                 `;
 
                 container.prepend(row);
@@ -1510,6 +1536,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const statusEl = document.getElementById(`status-${e.code}`);
                 if (statusEl) {
                     statusEl.innerText = e.status.toUpperCase();
+                }
+
+                const btn = document.getElementById(`btn-room-${e.code}`);
+                if (btn) {
+                    if (e.status === 'playing') {
+                        btn.outerHTML = `
+                            <a href="/terminal/sala/${e.code}/espectador" class="room-link-btn btn-spectate" id="btn-room-${e.code}" onclick="if(window.robcoAudio) window.robcoAudio.playKeyClick();">
+                                > OBSERVAR
+                            </a>
+                        `;
+                    } else if (e.status === 'waiting') {
+                        btn.outerHTML = `
+                            <button type="button" class="room-link-btn" id="btn-room-${e.code}" onclick="joinRoomPrompt('${e.code}')">
+                                > ENLAZAR
+                            </button>
+                        `;
+                    }
                 }
 
                 if (e.status === 'finished') {
