@@ -540,8 +540,11 @@ class RobcoTerminalController extends Controller
         broadcast(new TerminalRoomUpdated($room->code, 'playing'));
 
         return response()->json([
-            'success' => true,
-            'message' => 'REVANCHA INICIALIZADA',
+            'success'     => true,
+            'grid_data'   => $newGame,
+            'word_length' => $newGame['word_length'],
+            'attempts'    => $attempts,
+            'message'     => 'REVANCHA INICIALIZADA',
         ]);
     }
 

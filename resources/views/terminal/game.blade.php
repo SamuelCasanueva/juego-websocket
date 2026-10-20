@@ -1022,7 +1022,7 @@
             AUTORIZACIÓN DE SUPERVISOR CONCEDIDA.
         </div>
         <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-            <button class="term-action-btn" onclick="requestRematch()" style="font-size: 1.05rem; padding: 10px 20px;">
+            <button class="term-action-btn btn-rematch-action" onclick="requestRematch()" style="font-size: 1.05rem; padding: 10px 20px;">
                 > [REINICIAR PROTOCOLO // REVANCHA]
             </button>
             <a href="{{ route('terminal.lobby') }}" class="term-action-btn" style="font-size: 1.05rem; padding: 10px 20px;">
@@ -1039,7 +1039,7 @@
             EL NODO REMOTO HA COMPROMETIDO EL SISTEMA.
         </div>
         <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-            <button class="term-action-btn" onclick="requestRematch()" style="font-size: 1.05rem; padding: 10px 20px; border-color: var(--term-red); color: var(--term-red);">
+            <button class="term-action-btn btn-rematch-action" onclick="requestRematch()" style="font-size: 1.05rem; padding: 10px 20px; border-color: var(--term-red); color: var(--term-red);">
                 > [REINICIAR PROTOCOLO // REVANCHA]
             </button>
             <a href="{{ route('terminal.lobby') }}" class="term-action-btn" style="font-size: 1.05rem; padding: 10px 20px; border-color: var(--term-red); color: var(--term-red);">
@@ -1445,9 +1445,70 @@ function renderNewGrid(gridData) {
     }
 }
 
+function applyRematchSession(gridData, attempts) {
+    isGameActive = true;
+
+    // 1. Ocultar overlays de fin de partida
+    const winOverlay = document.getElementById('winOverlay');
+    const lossOverlay = document.getElementById('lossOverlay');
+    if (winOverlay) winOverlay.classList.remove('active');
+    if (lossOverlay) lossOverlay.classList.remove('active');
+
+    // 2. Restaurar botones de revancha
+    document.querySelectorAll('.btn-rematch-action').forEach(b => {
+        b.disabled = false;
+        b.innerText = '> [REINICIAR PROTOCOLO // REVANCHA]';
+    });
+
+    // 3. Restaurar intentos
+    const resetAttempts = attempts || MAX_ATTEMPTS;
+    updateMyAttempts(resetAttempts);
+    updateRivalAttempts(resetAttempts);
+
+    // 4. Renderizar nueva matriz de palabras
+    if (gridData) {
+        renderNewGrid(gridData);
+    }
+
+    // 5. Restablecer barra de previsualización
+    const preview = document.getElementById('previewSelection');
+    if (preview) preview.innerText = 'SELECCIONA PALABRA';
+
+    // 6. Restablecer perk de inyección
+    injectionUsed = false;
+    const btnInj = document.getElementById('btnCodeInjection');
+    const btnInjBanner = document.getElementById('btnCodeInjectionBanner');
+    if (btnInj) {
+        btnInj.disabled = false;
+        btnInj.style.opacity = '1';
+        btnInj.innerText = '⚡ [EJECUTAR INYECCIÓN DE CÓDIGO (1x)]';
+    }
+    if (btnInjBanner) {
+        btnInjBanner.disabled = false;
+        btnInjBanner.style.opacity = '1';
+        btnInjBanner.innerText = '⚡ [PURGAR 2 DUDAS (1x)]';
+    }
+
+    // 7. Reiniciar simulación ZAX si aplica
+    if (IS_AI_MODE && IS_PLAYER_1) {
+        zaxAttemptsLeft = resetAttempts;
+        initZaxAiSimulation();
+    }
+
+    appendLog('> REVANCHA INICIALIZADA // NUEVA MATRIZ DE MEMORIA CARGADA.', 'log-line-sys');
+    if (window.robcoAudio) window.robcoAudio.playBracketBonus();
+}
+
 async function requestRematch() {
     if (window.robcoAudio) window.robcoAudio.playKeyClick();
-    appendLog('> ENVIANDO SOLICITUD DE REVANCHA A LA SUBRED...', 'log-line-sys');
+
+    // Feedback visual inmediato en el botón
+    document.querySelectorAll('.btn-rematch-action').forEach(b => {
+        b.disabled = true;
+        b.innerText = '⚡ [INICIALIZANDO NUEVA SECUENCIA...]';
+    });
+
+    appendLog('> TRANSMITIENDO SOLICITUD DE REVANCHA A LA SUBRED...', 'log-line-sys');
 
     try {
         const res = await fetch(`/terminal/sala/${ROOM_CODE}/revancha`, {
@@ -1459,11 +1520,21 @@ async function requestRematch() {
             }
         });
         const data = await res.json();
-        if (!data.success) {
-            appendLog(`> ${data.message}`, 'log-line-sys');
+        if (data.success && data.grid_data) {
+            applyRematchSession(data.grid_data, data.attempts || MAX_ATTEMPTS);
+        } else {
+            appendLog(`> ${data.message || 'Error al iniciar revancha'}`, 'log-line-sys');
+            document.querySelectorAll('.btn-rematch-action').forEach(b => {
+                b.disabled = false;
+                b.innerText = '> [REINICIAR PROTOCOLO // REVANCHA]';
+            });
         }
     } catch (err) {
         console.error(err);
+        document.querySelectorAll('.btn-rematch-action').forEach(b => {
+            b.disabled = false;
+            b.innerText = '> [REINICIAR PROTOCOLO // REVANCHA]';
+        });
     }
 }
 
@@ -1567,19 +1638,8 @@ function initRobcoTerminal() {
                 }
             })
             .listen('.TerminalRematch', (e) => {
-                isGameActive = true;
-                document.getElementById('winOverlay').classList.remove('active');
-                document.getElementById('lossOverlay').classList.remove('active');
-                updateMyAttempts(4);
-                updateRivalAttempts(4);
-
-                renderNewGrid(e.gridData);
-                appendLog('> REVANCHA INICIADA // NUEVO VOLCADO DE MEMORIA GENERADO.', 'log-line-sys');
-                if (window.robcoAudio) window.robcoAudio.playBracketBonus();
-                if (IS_AI_MODE && IS_PLAYER_1) {
-                    zaxAttemptsLeft = 4;
-                    initZaxAiSimulation();
-                }
+                const grid = e.gridData || e.grid_data;
+                applyRematchSession(grid, MAX_ATTEMPTS);
             })
             .listen('.RoomChatMessage', (e) => {
                 appendRoomChatMessage(e);
