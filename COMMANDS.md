@@ -88,6 +88,9 @@ cloudflared tunnel --url http://localhost:8008
 👉 **Listo:** Copias la URL de Cloudflare (`https://xxxx.trycloudflare.com`) y se la pasas a tus compañeros.  
 **No hace falta configurar ningún puerto ni enlace secundario:** el chat, las salas y los WebSockets funcionan al 100% en tiempo real.
 
+> 📖 **¿Quieres saber cómo funciona la unificación de red y WebSockets?**  
+> Consulta la explicación detallada y arquitectura en: [TUNNEL_GATEWAY.md](TUNNEL_GATEWAY.md).
+
 ---
 
 ## 🛠️ Comandos útiles adicionales
