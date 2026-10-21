@@ -990,7 +990,7 @@
                 </div>
                 <div class="term-room-chat-feed" id="roomChatFeed">
                     @forelse($roomChat as $m)
-                        <div class="room-chat-msg {{ $m->player_token === $token ? 'room-chat-msg-own' : 'room-chat-msg-rival' }}">
+                        <div class="room-chat-msg {{ $m->player_token === $token ? 'room-chat-msg-own' : 'room-chat-msg-rival' }}" data-chat-id="{{ $m->id }}">
                             <span class="room-chat-time">[{{ $m->created_at->format('H:i') }}]</span>
                             <span class="room-chat-author">&lt;{{ strtoupper($m->player_name) }}&gt;:</span>
                             <span class="room-chat-text">{{ e($m->message) }}</span>
@@ -1739,15 +1739,37 @@ function appendRoomChatMessage(data) {
     const feed = document.getElementById('roomChatFeed');
     if (!feed) return;
 
-    // Deduplicación para evitar duplicar mensajes
+    // 1. Deduplicación por ID único (proveniente de BD / WebSocket / HTTP)
     if (data.id && feed.querySelector(`[data-chat-id="${data.id}"]`)) {
         return;
+    }
+
+    const isOwn = (data.playerToken === MY_TOKEN);
+
+    // 2. Salvaguarda para mensajes propios: evita duplicación local
+    // si el evento WebSocket y la respuesta HTTP llegan desincronizados
+    if (isOwn) {
+        const ownMsgs = feed.querySelectorAll('.room-chat-msg-own');
+        const lastOwn = ownMsgs.length > 0 ? ownMsgs[ownMsgs.length - 1] : null;
+        if (lastOwn) {
+            const lastText = lastOwn.querySelector('.room-chat-text')?.textContent;
+            const existingId = lastOwn.dataset.chatId;
+
+            // Si ambos tienen ID asignado y son distintos, son mensajes intencionales diferentes
+            const bothHaveDifferentIds = (data.id && existingId && String(data.id) !== String(existingId));
+
+            if (!bothHaveDifferentIds && lastText === data.message) {
+                if (data.id && !existingId) {
+                    lastOwn.dataset.chatId = data.id;
+                }
+                return;
+            }
+        }
     }
 
     const empty = document.getElementById('noRoomChatMsg');
     if (empty) empty.remove();
 
-    const isOwn = (data.playerToken === MY_TOKEN);
     const div = document.createElement('div');
     if (data.id) div.dataset.chatId = data.id;
     div.className = `room-chat-msg ${isOwn ? 'room-chat-msg-own' : 'room-chat-msg-rival'}`;

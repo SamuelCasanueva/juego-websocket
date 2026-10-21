@@ -12,6 +12,7 @@ class RoomChatMessage implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public ?int $id;
     public string $roomCode;
     public string $playerName;
     public int $playerNumber;
@@ -19,8 +20,9 @@ class RoomChatMessage implements ShouldBroadcast
     public string $message;
     public string $time;
 
-    public function __construct(string $roomCode, string $playerName, int $playerNumber, string $playerToken, string $message, string $time)
+    public function __construct(string $roomCode, string $playerName, int $playerNumber, string $playerToken, string $message, string $time, ?int $id = null)
     {
+        $this->id = $id;
         $this->roomCode = $roomCode;
         $this->playerName = $playerName;
         $this->playerNumber = $playerNumber;

@@ -1178,7 +1178,7 @@
         <div class="term-chat-wrapper">
             <div class="term-chat-feed" id="lobbyChatFeed">
                 @forelse($globalChat as $msg)
-                    <div class="chat-msg {{ $msg->player_token === $token ? 'chat-msg-own' : '' }}">
+                    <div class="chat-msg {{ $msg->player_token === $token ? 'chat-msg-own' : '' }}" data-chat-id="{{ $msg->id }}">
                         <span class="chat-time">[{{ $msg->created_at->format('H:i') }}]</span>
                         <span class="chat-author">&lt;{{ strtoupper($msg->player_name) }}&gt;:</span>
                         <span class="chat-content">{{ e($msg->message) }}</span>
@@ -1736,15 +1736,34 @@ function appendLobbyChatMessage(msgData) {
     const feed = document.getElementById('lobbyChatFeed');
     if (!feed) return;
 
-    // Deduplicación para no mostrar dos veces el mismo mensaje
+    // 1. Deduplicación por ID único
     if (msgData.id && feed.querySelector(`[data-chat-id="${msgData.id}"]`)) {
         return;
+    }
+
+    const isOwn = (msgData.playerToken === MY_PLAYER_TOKEN);
+
+    // 2. Salvaguarda para mensajes propios
+    if (isOwn) {
+        const ownMsgs = feed.querySelectorAll('.chat-msg-own');
+        const lastOwn = ownMsgs.length > 0 ? ownMsgs[ownMsgs.length - 1] : null;
+        if (lastOwn) {
+            const lastText = lastOwn.querySelector('.chat-content')?.textContent;
+            const existingId = lastOwn.dataset.chatId;
+            const bothHaveDifferentIds = (msgData.id && existingId && String(msgData.id) !== String(existingId));
+
+            if (!bothHaveDifferentIds && lastText === msgData.message) {
+                if (msgData.id && !existingId) {
+                    lastOwn.dataset.chatId = msgData.id;
+                }
+                return;
+            }
+        }
     }
 
     const emptyMsg = document.getElementById('noLobbyChatMsg');
     if (emptyMsg) emptyMsg.remove();
 
-    const isOwn = (msgData.playerToken === MY_PLAYER_TOKEN);
     const div = document.createElement('div');
     if (msgData.id) div.dataset.chatId = msgData.id;
     div.className = `chat-msg ${isOwn ? 'chat-msg-own' : ''}`;
